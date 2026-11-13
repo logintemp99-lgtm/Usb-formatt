@@ -1,0 +1,53 @@
+name: Build APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect project files from anywhere in the repo
+        run: |
+          set -e
+          P="$RUNNER_TEMP/proj"
+          K="$P/app/src/main/java/com/example/usbformatter"
+          mkdir -p "$K"
+          need() {
+            src=$(find "$GITHUB_WORKSPACE" -type f -name "$1" -not -path '*/.git/*' | head -n1)
+            if [ -z "$src" ]; then echo "ERROR: $1 not found in the repository"; exit 1; fi
+            cp "$src" "$2"
+            echo "Found $1 at $src"
+          }
+          need settings.gradle.kts "$P/settings.gradle.kts"
+          need AndroidManifest.xml "$P/app/src/main/AndroidManifest.xml"
+          need MainActivity.kt "$K/MainActivity.kt"
+          need UsbMassStorage.kt "$K/UsbMassStorage.kt"
+          need Fat32Formatter.kt "$K/Fat32Formatter.kt"
+          for f in $(find "$GITHUB_WORKSPACE" -type f -name build.gradle.kts -not -path '*/.git/*'); do
+            if grep -q namespace "$f"; then cp "$f" "$P/app/build.gradle.kts"
+            elif grep -q 'apply false' "$f"; then cp "$f" "$P/build.gradle.kts"
+            fi
+          done
+          test -f "$P/app/build.gradle.kts" || { echo "ERROR: app build.gradle.kts not found"; exit 1; }
+          test -f "$P/build.gradle.kts" || { echo "ERROR: root build.gradle.kts not found"; exit 1; }
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Build
+        working-directory: ${{ runner.temp }}/proj
+        run: gradle assembleDebug
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: UsbFormatter-apk
+          path: ${{ runner.temp }}/proj/app/build/outputs/apk/debug/app-debug.apk

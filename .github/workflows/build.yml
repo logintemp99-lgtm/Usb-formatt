@@ -5,9 +5,12 @@ on:
     branches: [main]
 jobs:
   build:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: List repository files
+        run: echo "::notice::Files in repo - $(find . -type f -not -path './.git/*' | tr '\n' ' ')"
 
       - name: Collect project files from anywhere in the repo
         run: |
@@ -17,7 +20,7 @@ jobs:
           mkdir -p "$K"
           need() {
             src=$(find "$GITHUB_WORKSPACE" -type f -name "$1" -not -path '*/.git/*' | head -n1)
-            if [ -z "$src" ]; then echo "ERROR: $1 not found in the repository"; exit 1; fi
+            if [ -z "$src" ]; then echo "::error::$1 not found in the repository"; exit 1; fi
             cp "$src" "$2"
             echo "Found $1 at $src"
           }
@@ -31,8 +34,8 @@ jobs:
             elif grep -q 'apply false' "$f"; then cp "$f" "$P/build.gradle.kts"
             fi
           done
-          test -f "$P/app/build.gradle.kts" || { echo "ERROR: app build.gradle.kts not found"; exit 1; }
-          test -f "$P/build.gradle.kts" || { echo "ERROR: root build.gradle.kts not found"; exit 1; }
+          test -f "$P/app/build.gradle.kts" || { echo "::error::app build.gradle.kts not found"; exit 1; }
+          test -f "$P/build.gradle.kts" || { echo "::error::root build.gradle.kts not found"; exit 1; }
 
       - uses: actions/setup-java@v4
         with:

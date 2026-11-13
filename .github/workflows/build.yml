@@ -9,6 +9,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Unzip any zip files in the repo
+        run: |
+          find "$GITHUB_WORKSPACE" -type f -name '*.zip' -not -path '*/.git/*' -print0 | while IFS= read -r -d '' z; do
+            echo "Unzipping $z"
+            unzip -o -q "$z" -d "$GITHUB_WORKSPACE/_unzipped"
+          done || true
+
       - name: List repository files
         run: echo "::notice::Files in repo - $(find . -type f -not -path './.git/*' | tr '\n' ' ')"
 
